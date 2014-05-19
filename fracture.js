@@ -12,11 +12,16 @@ var upper_left = new Two.Anchor(0, 0);
 var upper_right = new Two.Anchor(two.width, 0);
 var lower_left = new Two.Anchor(0, two.height);
 var lower_right = new Two.Anchor(two.width, two.height);
+console.log('LR', lower_right);
 
 var box = two.makePolygon([upper_left, upper_right, lower_right, lower_left]);
 box.fill = 'rgba(255, 0, 0, 0.5)';
 box.stroke = 'rgba(255, 0, 0, 1.0)';
 box.linewidth = 2;
+console.log('bounding rect:', box.getBoundingClientRect(true));
+console.log('bounding rect:', box.getBoundingClientRect(false));
+console.log('vertices:', box.vertices);
+console.log('WTF. Why do Anchors change?')
 
 var find_center = function (polygon) {
   var bounding_rect = polygon.getBoundingClientRect(true);
@@ -155,8 +160,8 @@ var sub_polygons = function (polygon, n) {
   return result;
 }
 
-sub_polygons(box, 7);
-two.update();
+// sub_polygons(box, 7);
+// two.update();
 
 // two.bind('update', function(frameCount) {
 //   box.rotation += 0.005;
