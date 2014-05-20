@@ -160,8 +160,8 @@ var sub_polygons = function (polygon, n) {
   return result;
 }
 
-// sub_polygons(box, 7);
-// two.update();
+sub_polygons(box, 7);
+two.update();
 
 // two.bind('update', function(frameCount) {
 //   box.rotation += 0.005;
