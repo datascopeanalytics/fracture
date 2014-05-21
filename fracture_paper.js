@@ -103,6 +103,7 @@ var sub_polygons = function (polygon, n) {
     polylist.push(new_vertices[(index+1) % new_vertices.length]);
     var yeah = new Path(polylist);
     yeah.strokeColor = 'black';
+    yeah.fillColor = new Color(Math.random(), Math.random(), Math.random());
     // yeah.strokeColor = colors[index]
     // yeah.strokeWidth = index + 1;
     yeah.closed = true;
@@ -118,10 +119,10 @@ var sub_polygons = function (polygon, n) {
 // make rectangle
 var border = new Rectangle(
   new Point(0, 0),
-  new Point(600, 400)
+  new Point(800, 600)
 );
 var box = new Path.Rectangle(border);
-box.fillColor = 'cornflowerblue';
+// box.fillColor = 'cornflowerblue';
 
 var a = sub_polygons(box, 7);
 
@@ -136,7 +137,9 @@ var a = sub_polygons(box, 7);
 
 
 _.each(a, function(i) {
-  _.each(sub_polygons(i, 5), function (j) {
-    sub_polygons(j, 3);
+  _.each(sub_polygons(i, 7), function (j) {
+    _.each(sub_polygons(j, 7), function (k) {
+      // sub_polygons(k, 7);
+    });
   });
-})
+});
