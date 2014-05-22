@@ -1,41 +1,55 @@
-var find_center = function (polygon) {
-  return polygon.position;
+// This takes a polygon and returns the centroid. See:
+// https://en.wikipedia.org/wiki/Centroid#Centroid_of_polygon
+function centroid(polygon) {
+  var area = 0;
+  var c_x = 0;
+  var c_y = 0;
+  _.each(polygon.curves, function (curve) {
+    var p1 = curve.point1;
+    var p2 = curve.point2;
+    var z = (p1.x * p2.y - p2.x * p1.y);
+    c_x += (p1.x + p2.x) * z;
+    c_y += (p1.y + p2.y) * z;
+    area += z;
+  });
+  area /= 2;
+  c_x /= (6 * area);
+  c_y /= (6 * area);
+  return new Point(c_x, c_y);
 }
 
-var iter_pairs = function (array) {
-  var result = [];
-  for (var i=0; i < array.length; i++) {
-    result.push([array[i], array[(i + 1) % array.length]]);
-  }
-  return result;
+// This function takes a polygon, and return "center" Point. The
+// "center" in this case means the center of the rectangular bounding
+// box.
+var find_center = function (polygon) {
+  return centroid(polygon);
+}
+
+// This function finds the Point at which a ray (desribed by it's
+// starting point and angle) intersects a polygon.
+var find_intercept = function (polygon, starting_point, angle) {
+
+  // create a path for the ray that we can use to compute the
+  // intersection. No way the radius of the line needs to be longer
+  // than the perimeter of the polygon. So, we'll do two times just in
+  // case :)
+  var hack_radius = 2 * polygon.length; 
+  var x = starting_point.x + hack_radius * Math.cos(angle);
+  var y = starting_point.y + hack_radius * Math.sin(angle);
+  var sweep_line = new Path.Line(starting_point, new Point(x, y));
+
+  // getIntersections returns a list. TODO: There should always be
+  // one, but there is not. Why does this happen?
+  var intersections = polygon.getIntersections(sweep_line);
+  var first_point = intersections[0].point;
+  return first_point;
 };
 
-var find_intercept = function (side, center, angle) {
-  var hack_radius = 99999999999; // .99.99999.99999.999.999
-  var x4 = center.x + hack_radius * Math.cos(angle);
-  var y4 = center.y + hack_radius * Math.sin(angle);
-  var sweep = new Path.Line(
-    center,
-    new Point(x4, y4)
-  );
-  var sidetest = new Path.Line(
-    side.point1,
-    side.point2
-  );
-  var b = sweep.getIntersections(sidetest);
-  if (b[0]) {
-    return b[0].point;
-  }
-  else {
-    return null;
-  }
-};
-
+// return angle in radians between the "zero horizontal" and the ray
+// defined by vertex and center. atan2 returns angle between -pi and
+// pi, and we want the angle between 0 and 2*pi, so if it's
+// negative, add two pi.
 var angle_from_origin = function (vertex, center) {
-  // return angle in radians between the "zero horizontal" and the ray
-  // defined by vertex and center. atan2 returns angle between -pi and
-  // pi, and we want the angle between 0 and 2*pi, so if it's
-  // negative, add two pi.
   var result = Math.atan2(vertex.y - center.y, vertex.x - center.x);
   if (result < 0) {
     return 2 * Math.PI + result;
@@ -45,24 +59,7 @@ var angle_from_origin = function (vertex, center) {
   }
 }
 
-var close_enough = function (angle, lower_bound, upper_bound) {
-  // the following:
-  // intercept_angle >= angle && intercept_angle < next_angle;
-  // is running into floating point errors.
-  // This does the same thing, but to lower precision on the lower
-  // bound side.
-  if (Math.abs(angle - lower_bound) < 0.000001) {
-    return true;
-  }
-  else {
-    return (angle >= lower_bound && angle < upper_bound);
-  };
-}
-
-var colors = ['black', 'red', 'blue'];
-
 var sub_polygons = function (polygon, n) {
-  var result = [];
 
   // find center of parent polygon
   var center = find_center(polygon);
@@ -72,74 +69,70 @@ var sub_polygons = function (polygon, n) {
     return 2 * Math.PI * i / n;
   });
 
-  // find all new vertices
-  var new_vertices = [];
-
-  _.each(angles, function (angle, angle_index) {
-
-    // find where the line created by angle+center intercepts each side
-    var side_intercepts = _.map(polygon.curves, function(side){
-      return find_intercept(side, center, angle);
-    });
-    var good_intercept = _.find(side_intercepts, function(i) {return i});
-
-    new_vertices.push(good_intercept);
+  // find where "sweep lines" intersect the polygon
+  var new_vertices = _.map(angles, function (angle) {
+    return find_intercept(polygon, center, angle);
   });
 
-  // every new vertex represents a shape
-  _.each(new_vertices, function(vertex,index){
-    var angle_a = angles[index];
-    var angle_b = angles[(index+1) % angles.length];
-    if (angle_b === 0) {
-      angle_b = 2 * Math.PI;
+  // every new vertex represents a new sub-polygon, we'll make them
+  // here and return them.
+  var result = _.map(new_vertices, function(vertex, index) {
+
+    // get the lower and upper bound angles for this region that we
+    // are sweeping. For the last one that wraps around, use 2pi as
+    // the angle instead of zero, so that the comparison is easier
+    // later.
+    var angle_lo = angles[index];
+    var angle_hi = angles[(index+1) % angles.length];
+    if (angle_hi === 0) {
+      angle_hi = 2 * Math.PI;
     }
+
+    // new polygon always starts with center, and goes to the first
+    // new vertex.
     var polylist = [center, vertex];
-    _.each(polygon.segments, function(anchor) {
-      var angle = angle_from_origin(anchor.point, center);
-      if (angle >= angle_a && angle <= angle_b) {
-	polylist.push(anchor.point);
+
+    // now add all of the old partent vertices that are between the
+    // sweep angles
+    _.each(polygon.segments, function(segment) {
+      var angle = angle_from_origin(segment.point, center);
+      if (angle >= angle_lo && angle <= angle_hi) {
+	polylist.push(segment.point);
       }
     });
-    polylist.push(new_vertices[(index+1) % new_vertices.length]);
-    var yeah = new Path(polylist);
-    yeah.strokeColor = 'black';
-    yeah.fillColor = new Color(Math.random(), Math.random(), Math.random());
-    // yeah.strokeColor = colors[index]
-    // yeah.strokeWidth = index + 1;
-    yeah.closed = true;
-    // yeah.selected = true;
-    result.push(yeah);
+    
+    // new polygon always ends with next vertex
+    var next_vertex = new_vertices[(index + 1) % new_vertices.length];
+    polylist.push(next_vertex);
+
+    // make the sub polygon, steez it up, and return it.
+    var sub_color = new Color(Math.random(), Math.random(), Math.random());
+    var sub_polygon = new Path(polylist);
+    sub_polygon.strokeColor = 'black';
+    sub_polygon.fillColor = sub_color;
+    sub_polygon.closed = true;
+    return sub_polygon
   });
 
-  return result;
+  // return the list of sub-polygons
+  return result
 }
-
-
 
 // make rectangle
 var border = new Rectangle(
   new Point(0, 0),
-  new Point(800, 600)
+  new Point(400, 300)
 );
 var box = new Path.Rectangle(border);
 // box.fillColor = 'cornflowerblue';
 
 var a = sub_polygons(box, 7);
 
-// sub_polygons(a[0], 3);
-// sub_polygons(a[1], 5);
-// sub_polygons(a[2], 7);
-// sub_polygons(a[3], 5);
-// sub_polygons(a[4], 9);
-// sub_polygons(a[5], 5);
-// sub_polygons(a[6], 5);
-// sub_polygons(a[2], 3);
-
-
 _.each(a, function(i) {
-  _.each(sub_polygons(i, 7), function (j) {
-    _.each(sub_polygons(j, 7), function (k) {
-      // sub_polygons(k, 7);
+  _.each(sub_polygons(i, 5), function (j) {
+    _.each(sub_polygons(j, 3), function (k) {
+      // sub_polygons(k, 3);
     });
   });
 });
+
