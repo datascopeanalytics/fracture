@@ -39,7 +39,11 @@ var find_intercept = function (polygon, starting_point, angle) {
   var sweep_line = new Path.Line(starting_point, new Point(x, y));
 
   // getIntersections returns a list. TODO: There should always be
-  // one, but there is not. Why does this happen?
+  // one, but there is not. Why does this happen? I think it's a bug
+  // in paper.js! see
+  // https://github.com/paperjs/paper.js/issues/477. I was able to
+  // hack fix it by making the sweep line a closed polygon...
+  sweep_line.closed = true;
   var intersections = polygon.getIntersections(sweep_line);
   var first_point = intersections[0].point;
   return first_point;
@@ -84,23 +88,31 @@ var sub_polygons = function (polygon, n) {
     // later.
     var angle_lo = angles[index];
     var angle_hi = angles[(index+1) % angles.length];
-    if (angle_hi === 0) {
-      angle_hi = 2 * Math.PI;
+    if (angle_hi < angle_lo) {
+      angle_hi += 2 * Math.PI;
     }
 
     // new polygon always starts with center, and goes to the first
     // new vertex.
     var polylist = [center, vertex];
 
-    // now add all of the old partent vertices that are between the
-    // sweep angles
-    _.each(polygon.segments, function(segment) {
+    // now add all of the old parent vertices that are between the
+    // sweep angles. need to make sure that they are sorted in order
+    // of increasing angle!
+    var parent_vertices = [];
+    _.each(polygon.segments, function(segment, i) {
       var angle = angle_from_origin(segment.point, center);
       if (angle >= angle_lo && angle <= angle_hi) {
-	polylist.push(segment.point);
+	parent_vertices.push([angle, segment.point]);
       }
     });
-    
+
+    // sort in order of increasing angle and append to polylist
+    parent_vertices.sort();
+    _.each(parent_vertices, function (decorated_vertex) {
+      polylist.push(decorated_vertex[1]);
+    });
+
     // new polygon always ends with next vertex
     var next_vertex = new_vertices[(index + 1) % new_vertices.length];
     polylist.push(next_vertex);
@@ -108,30 +120,37 @@ var sub_polygons = function (polygon, n) {
     // make the sub polygon, steez it up, and return it.
     var sub_color = new Color(Math.random(), Math.random(), Math.random());
     var sub_polygon = new Path(polylist);
-    sub_polygon.strokeColor = 'black';
+    sub_polygon.strokeColor = 'white';
+    sub_polygon.strokeWidth = 0.1;
     sub_polygon.fillColor = sub_color;
     sub_polygon.closed = true;
     return sub_polygon
   });
 
   // return the list of sub-polygons
-  return result
+  polygon.remove();
+  return result;
 }
 
 // make rectangle
 var border = new Rectangle(
   new Point(0, 0),
-  new Point(400, 300)
+  new Point(1262, 685)
 );
 var box = new Path.Rectangle(border);
 // box.fillColor = 'cornflowerblue';
 
-var a = sub_polygons(box, 7);
+var a = sub_polygons(box, 11);
 
+// TODO: should maybe actually rewrite this recursively. Also, could
+// be cool to subdivide each polygon into a different number to make
+// the pattern less regular.
 _.each(a, function(i) {
-  _.each(sub_polygons(i, 5), function (j) {
-    _.each(sub_polygons(j, 3), function (k) {
-      // sub_polygons(k, 3);
+  _.each(sub_polygons(i, 9), function (j) {
+    _.each(sub_polygons(j, 7), function (k) {
+      _.each(sub_polygons(k, 5), function (l) {
+      	// sub_polygons(l, 3);
+      });
     });
   });
 });
