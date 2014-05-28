@@ -33,7 +33,7 @@ var find_intercept = function (polygon, starting_point, angle) {
   // intersection. No way the radius of the line needs to be longer
   // than the perimeter of the polygon. So, we'll do two times just in
   // case :)
-  var hack_radius = 2 * polygon.length; 
+  var hack_radius = 2 * polygon.length;
   var x = starting_point.x + hack_radius * Math.cos(angle);
   var y = starting_point.y + hack_radius * Math.sin(angle);
   var sweep_line = new Path.Line(starting_point, new Point(x, y));
@@ -103,7 +103,7 @@ var sub_polygons = function (polygon, n) {
     _.each(polygon.segments, function(segment, i) {
       var angle = angle_from_origin(segment.point, center);
       if (angle >= angle_lo && angle <= angle_hi) {
-	parent_vertices.push([angle, segment.point]);
+    parent_vertices.push([angle, segment.point]);
       }
     });
 
@@ -140,18 +140,19 @@ var border = new Rectangle(
 var box = new Path.Rectangle(border);
 // box.fillColor = 'cornflowerblue';
 
-var a = sub_polygons(box, 11);
-
-// TODO: should maybe actually rewrite this recursively. Also, could
-// be cool to subdivide each polygon into a different number to make
-// the pattern less regular.
-_.each(a, function(i) {
-  _.each(sub_polygons(i, 9), function (j) {
-    _.each(sub_polygons(j, 7), function (k) {
-      _.each(sub_polygons(k, 5), function (l) {
-      	// sub_polygons(l, 3);
-      });
+// takes a list of polygons and a list of integers
+// depth-first splits each polygon using the first number in the
+// split list (and pops off that number before calling its children
+function recursive_draw(polygons, split_list) {
+    // make a copy of the passed list - js passes by reference by default
+    var list_copy = split_list.slice();
+    var split_num = list_copy.shift();
+    _.each(polygons, function (poly) {
+        if(split_num !== undefined) {
+            recursive_draw(sub_polygons(poly, split_num),
+                           list_copy);
+        }
     });
-  });
-});
+}
 
+recursive_draw([box],[11,9,7,5])
