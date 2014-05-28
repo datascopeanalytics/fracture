@@ -140,6 +140,15 @@ var border = new Rectangle(
 var box = new Path.Rectangle(border);
 // box.fillColor = 'cornflowerblue';
 
+/**
+ * Returns a random integer between min (inclusive) and max (inclusive)
+ * Using Math.round() will give you a non-uniform distribution!
+ * thanks to http://stackoverflow.com/a/1527820/892506
+ */
+function getRandomInt(min, max) {
+    return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
 // takes a list of polygons and a list of integers
 // depth-first splits each polygon using the first number in the
 // split list (and pops off that number before calling its children
@@ -155,4 +164,20 @@ function recursive_draw(polygons, split_list) {
     });
 }
 
-recursive_draw([box],[11,9,7,5])
+// functions like recursive_draw, but instead of a list of integers it
+// takes a list of ranges of integers and randomly samples from those
+// ranges at each level
+function recursive_random_draw(polygons, split_ranges){
+    var ranges_copy = split_ranges.slice();
+    var split_range = ranges_copy.shift();
+    _.each(polygons, function(poly) {
+        if(split_range !== undefined) {
+            var sub = sub_polygons(poly, getRandomInt(split_range[0],
+                                                      split_range[1]))
+            recursive_random_draw(sub, ranges_copy);
+        }
+    });
+}
+
+//recursive_draw([box],[11,9,7,5])
+recursive_random_draw([box],[[9,11],[7,9],[5,7],[3,5]])
