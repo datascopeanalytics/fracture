@@ -1,3 +1,42 @@
+/**
+ * Returns a random integer between min (inclusive) and max (inclusive)
+ * Using Math.round() will give you a non-uniform distribution!
+ * thanks to http://stackoverflow.com/a/1527820/892506
+ */
+function getRandomInt(min, max) {
+    return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+var datascope_colors = [
+  new Color(255 / 255, 96 / 255, 0 / 255),
+  new Color(0 / 255, 142 / 255, 245 / 255),
+  new Color(255 / 255, 21 / 255, 171 / 255),
+  new Color(243 / 255, 237 / 255, 0 / 255),
+  new Color(0 / 255, 204 / 255, 102 / 255),
+];
+
+if (Math.random() > 0.5) {
+  var get_sub_color = function () {
+    return datascope_colors[Math.floor(Math.random()*datascope_colors.length)];
+  }
+  var get_stroke_color = function () {
+    return 'white';
+  }
+  var get_stroke_width = function () {
+    return 1;
+  }
+} else {
+  var get_sub_color = function () {
+    return 'white';
+  }
+  var get_stroke_color = function () {
+    return datascope_colors[Math.floor(Math.random()*datascope_colors.length)];
+  }
+  var get_stroke_width = function () {
+    return 2;
+  }
+}
+
 // This takes a polygon and returns the centroid. See:
 // https://en.wikipedia.org/wiki/Centroid#Centroid_of_polygon
 function centroid(polygon) {
@@ -118,11 +157,11 @@ var sub_polygons = function (polygon, n) {
     polylist.push(next_vertex);
 
     // make the sub polygon, steez it up, and return it.
-    var sub_color = new Color(Math.random(), Math.random(), Math.random());
+    // var sub_color = new Color(Math.random(), Math.random(), Math.random());
     var sub_polygon = new Path(polylist);
-    sub_polygon.strokeColor = 'white';
-    sub_polygon.strokeWidth = 0.1;
-    sub_polygon.fillColor = sub_color;
+    sub_polygon.strokeColor = get_stroke_color();
+    sub_polygon.strokeWidth = get_stroke_width();
+    sub_polygon.fillColor = get_sub_color();
     sub_polygon.closed = true;
     return sub_polygon
   });
@@ -135,19 +174,12 @@ var sub_polygons = function (polygon, n) {
 // make rectangle
 var border = new Rectangle(
   new Point(0, 0),
-  new Point(1262, 685)
+  new Point(1500, 1500)
 );
+  // new Point(1262, 685)
 var box = new Path.Rectangle(border);
 // box.fillColor = 'cornflowerblue';
 
-/**
- * Returns a random integer between min (inclusive) and max (inclusive)
- * Using Math.round() will give you a non-uniform distribution!
- * thanks to http://stackoverflow.com/a/1527820/892506
- */
-function getRandomInt(min, max) {
-    return Math.floor(Math.random() * (max - min + 1)) + min;
-}
 
 // takes a list of polygons and a list of integers
 // depth-first splits each polygon using the first number in the
@@ -179,5 +211,6 @@ function recursive_random_draw(polygons, split_ranges){
     });
 }
 
-//recursive_draw([box],[11,9,7,5])
-recursive_random_draw([box],[[9,11],[7,9],[5,7],[3,5]])
+// recursive_draw([box],[11,9,7])
+recursive_random_draw([box],[[7,13],[5,11],[3,9],[3,7]])
+// recursive_random_draw([box],[[7, 3], [7, 3], [7, 3]])
